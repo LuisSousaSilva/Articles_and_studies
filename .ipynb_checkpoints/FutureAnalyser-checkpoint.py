@@ -1,5 +1,3 @@
-%matplotlib inline
-
 # importing libraries
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
@@ -413,7 +411,7 @@ def plotly_table(df, width=990, height=500, columnwidth=[25], title=None , index
         py.iplot(fig, show_link=False, config={'modeBarButtonsToRemove': ['sendDataToCloud','hoverCompareCartesian'],
                                                'displayModeBar': False})
 
-def compute_portfolio(quotes, weights):
+def compute_portfolio(quotes, weights, Nomes):
     
     # Anos do Portfolio
     Years = quotes.index.year.unique()
@@ -556,7 +554,7 @@ class color:
    UNDERLINE = '\033[4m'
    END = '\033[0m'
 
-### print color.BOLD + 'Hello World !' + color.END
+### print(color.BOLD + 'Hello World !' + color.END)
 
 ##################################################
 ### Begin of compute_drawdowns_table function ####
@@ -718,3 +716,66 @@ colors = ['royalblue',            # 1 - royalblue
           'rgb(128, 128, 0)',     # 8 - Olive
           '#00BFFF',              # 9 - Water Blue
           'rgb(128, 177, 211)']   # 10 - Blueish
+
+def compute_costs(DataFrame, percentage, sessions_per_year=365, Nome='Price'):
+    DataFrame = pd.DataFrame(DataFrame.copy())
+    DataFrame['Custos'] = (percentage/sessions_per_year) / 100
+    DataFrame['Custos_shifted'] = DataFrame['Custos'].shift(1)
+    DataFrame['Custos_acumulados'] = DataFrame['Custos_shifted'].cumsum()
+    DataFrame[Nome] = DataFrame.iloc[ : ,0] * (1-DataFrame['Custos_acumulados'])
+    DataFrame = DataFrame[[Nome]]
+    DataFrame = DataFrame.fillna(100)
+    return DataFrame
+
+def compute_ms_performance_table(DataFrame):
+    nr_of_days = int(str(DataFrame.index[-1] - DataFrame.index[0])[0:4])
+
+    if nr_of_days < 365:
+        compute_performance_table(DataFrame)
+        df.index = ['S.I.']
+        return df
+
+    elif nr_of_days >= 365 and nr_of_days < 365*3:
+        df0 = compute_performance_table(DataFrame)
+        df1 = compute_performance_table(filter_by_date(DataFrame, years=1))
+        df = pd.concat([df0, df1])
+        df.index = ['S.I.', '1 Year']
+        return df
+
+    elif nr_of_days >= 365*3 and nr_of_days < 365*5:
+        df0 = compute_performance_table(DataFrame)
+        df1 = compute_performance_table(filter_by_date(DataFrame, years=1))
+        df3 = compute_performance_table(filter_by_date(DataFrame, years=3))
+        df = pd.concat([df0, df1, df3])
+        df.index = ['S.I.', '1 Year', '3 Years']
+        return df
+
+    elif nr_of_days >= 365*5 and nr_of_days < 365*10:
+        df0 = compute_performance_table(DataFrame)
+        df1 = compute_performance_table(filter_by_date(DataFrame, years=1))
+        df3 = compute_performance_table(filter_by_date(DataFrame, years=3))
+        df5 = compute_performance_table(filter_by_date(DataFrame, years=5))
+        df = pd.concat([df0, df3, df5])
+        df.index = ['S.I.', '1 Year', '3 Years', '5 Years']
+        return df
+
+    elif nr_of_days >= 365*10 and nr_of_days < 365*15:
+        df0 = compute_performance_table(DataFrame)
+        df1 = compute_performance_table(filter_by_date(DataFrame, years=1))
+        df3 = compute_performance_table(filter_by_date(DataFrame, years=3))
+        df5 = compute_performance_table(filter_by_date(DataFrame, years=5))
+        df10 = compute_performance_table(filter_by_date(DataFrame, years=10))
+        df = pd.concat([df0, df3, df5, df10])
+        df.index = ['S.I.', '1 Year', '3 Years', '5 Years', '10 Years']
+        return df
+
+    elif nr_of_days >= 365*15 and nr_of_days < 365*20:
+        df0 = compute_performance_table(DataFrame)
+        df1 = compute_performance_table(filter_by_date(DataFrame, years=1))
+        df3 = compute_performance_table(filter_by_date(DataFrame, years=3))
+        df5 = compute_performance_table(filter_by_date(DataFrame, years=5))
+        df10 = compute_performance_table(filter_by_date(DataFrame, years=10))
+        df15 = compute_performance_table(filter_by_date(DataFrame, years=15))
+        df = pd.concat([df0, df3, df5, df10, df15])
+        df.index = ['S.I.', '1 Year', '3 Years', '5 Years', '10 Years', '15 Years']
+        return df
