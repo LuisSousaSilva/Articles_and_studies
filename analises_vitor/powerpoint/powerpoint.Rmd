@@ -1,0 +1,30 @@
+---
+title: Title slide (Slide 1)
+output:
+  powerpoint_presentation:
+    slide_level: 3 # use this to override default
+---
+
+# Vitor Mário Ribeiro, CFA (Slide 2)
+
+Disclamer
+
+<font size="8">O presente documento é privado e confidencial e foi preparado por Vítor Mário Ribeiro, CFA (Vítor Ribeiro) para uso exclusivo dos seus destinatários.
+Vítor Ribeiro é CEO & Founder da Future Proof,  um agente vinculado do Banco Invest, S.A. registado na CMVM. Todas as informações sobre as funções e os limites à atividade podem ser consultadas aqui e aqui.
+A informação contida neste documento tem carácter meramente informativo e particular, utilizando informação própria desenvolvida por Vítor Ribeiro e informação disponível ao público e considerada fidedigna. No entanto, a sua precisão não pode ser totalmente garantida e nada obsta a que aquelas fontes possam vir a ser alteradas.
+O presente documento  é divulgado aos  seus destinatários  como ferramenta  de apoio à apresentação sobre o tema  Investimento  em  Ações  organizada  pelo  ISEG YES. Vítor Ribeiro rejeita,  assim,  a responsabilidade por quaisquer  eventuais  danos  ou  prejuízos  resultantes,  direta  ou   indiretamente  da  utilização  da  informação referida neste documento independentemente da forma ou natureza que possam vir a revestir. 
+Não é permitida a reprodução total ou parcial deste documento, sem autorização prévia.</font">
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+### Slide Title (Slide 4)
+
+Slide Content (by default this content sets the slide level to three)
+
+#### Slide content header (Slide 4)
+
+##### Slide content header (Slide 4)
