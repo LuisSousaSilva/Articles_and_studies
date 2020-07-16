@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.offline as py
 import cufflinks as cf
-import seaborn as sns
 import pandas as pd
 import numpy as np
 import quandl
