@@ -817,9 +817,10 @@ def compute_ms_performance_table(DataFrame, freq='days'):
 
     elif nr_of_days >= 365 and nr_of_days < 365*3:
         df0 = compute_performance_table(DataFrame)
+        df_ytd = compute_performance_table(DataFrame, years='ytd')
         df1 = compute_performance_table(filter_by_date(DataFrame, years=1), freq=freq)
-        df = pd.concat([df0, df1])
-        df.index = ['S.I.', '1 Year']
+        df = pd.concat([df0, df_ytd, df1])
+        df.index = ['S.I.', 'YTD', '1 Year']
         df = df[['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']]
         return df
 
