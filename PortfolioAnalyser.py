@@ -613,7 +613,7 @@ def normalize(df):
     df = df.dropna()
     return (df / df.iloc[0]) * 100
     
-dimensions=(990, 500)
+dimensions=(970, 500)
 
 colorz = ['royalblue', 'orange', 'dimgrey', 'darkorchid']
 
