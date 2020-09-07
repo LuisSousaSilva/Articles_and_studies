@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly.offline as py
 import cufflinks as cf
+import datetime as dt
 import pandas as pd
 import numpy as np
 import quandl
@@ -11,6 +12,7 @@ import time
 
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 from IPython.display import Markdown, display
+from pandas.tseries.offsets import DateOffset
 from matplotlib.ticker import FuncFormatter
 from pandas.core.base import PandasObject
 from datetime import datetime
@@ -52,26 +54,35 @@ def compute_drawdowns(dataframe):
     '''
     return (dataframe / dataframe.cummax() -1) * 100
 
-def compute_return(dataframe):
+def compute_return(dataframe, years=''):
     '''
     Function to compute drawdowns of a timeseries
     given a dataframe of prices
     '''
-    return (dataframe.iloc[-1] / dataframe.iloc[0] -1) * 100
+    if isinstance(years, int):
+        years = years
+        dataframe = filter_by_date(dataframe, years=years)
+        return (dataframe.iloc[-1] / dataframe.iloc[0] -1) * 100
+
+    else:
+        return (dataframe.iloc[-1] / dataframe.iloc[0] -1) * 100
     
 def compute_max_DD(dataframe):
     return compute_drawdowns(dataframe).min()
 
-def compute_cagr(dataframe, years=0, investment_value=0):
+def compute_cagr(dataframe, years=''):
     '''
     Function to calculate CAGR given a dataframe of prices
     '''
-    years = len(pd.date_range(dataframe.index[0], dataframe.index[-1], freq='D')) / 365.25
+    if isinstance(years, int):
+        years = years
+        dataframe = filter_by_date(dataframe, years=years)
+        return(dataframe.iloc[-1].div(dataframe.iloc[0])).pow(1 / years).sub(1).mul(100)
     
-    if investment_value == 0:
-        return (dataframe.iloc[-1].div(dataframe.iloc[0]).pow(1 / years)).sub(1).mul(100)
     else:
-        return (dataframe.iloc[-1].div(investment_value).pow(1 / years)).sub(1).mul(100)
+        years = len(pd.date_range(dataframe.index[0], dataframe.index[-1], freq='D')) / 365
+        
+    return(dataframe.iloc[-1].div(dataframe.iloc[0])).pow(1 / years).sub(1).mul(100)
 
 def compute_mar(dataframe):
     '''
@@ -93,80 +104,22 @@ def compute_StdDev(dataframe, freq='days'):
     if freq == 'quarters':
         return dataframe.pct_change().std().mul((np.sqrt(4))).mul(100)
 
-def compute_sharpe(dataframe, years=0, freq='days'):    
+def compute_sharpe(dataframe, years='', freq='days'):    
     '''
     Function to calculate the sharpe ratio given a dataframe of prices.
     '''    
     return compute_cagr(dataframe, years).div(compute_StdDev(dataframe, freq))
 
-def compute_return(dataframe, investment_value=0):
-    '''
-    Function to compute drawdowns of a timeseries
-    given a dataframe of prices
-    '''
-    if investment_value == 0:
-        return(dataframe.iloc[-1] / dataframe.iloc[0] -1) * 100
-    else:
-        return(dataframe.iloc[-1] / investment_value -1) * 100
-
-def compute_ytd_return(dataframe):
-    last_year = str(dataframe.index[-1].year)
-    last_bday = pd.bdate_range(end = last_year, periods=500, freq='B')[-2]
-
-    # slicing dataframe
-    df = dataframe[last_bday:]
-    return compute_return(df)
-
-def compute_ytd_cagr(dataframe):
-    last_year = str(dataframe.index[-1].year)
-    last_bday = pd.bdate_range(end = last_year, periods=500, freq='B')[-2]
-
-    # slicing dataframe
-    df = dataframe[last_bday:]
-    return compute_cagr(df)
-
-def compute_ytd_StdDev(dataframe):
-    last_year = str(dataframe.index[-1].year)
-    last_bday = pd.bdate_range(end = last_year, periods=500, freq='B')[-2]
-
-    # slicing dataframe
-    df = dataframe[last_bday:]
-    return compute_StdDev(df)
-
-def compute_ytd_sharpe(dataframe):
-    last_year = str(dataframe.index[-1].year)
-    last_bday = pd.bdate_range(end = last_year, periods=500, freq='B')[-2]
-
-    # slicing dataframe
-    df = dataframe[last_bday:]
-    return compute_sharpe(df)
-
-def compute_ytd_max_DD(dataframe):
-    last_year = str(dataframe.index[-1].year)
-    last_bday = pd.bdate_range(end = last_year, periods=500, freq='B')[-2]
-
-    # slicing dataframe
-    df = dataframe[last_bday:]
-    return compute_max_DD(df)
-
-def compute_ytd_mar(dataframe):
-    last_year = str(dataframe.index[-1].year)
-    last_bday = pd.bdate_range(end = last_year, periods=500, freq='B')[-2]
-
-    # slicing dataframe
-    df = dataframe[last_bday:]
-    return compute_mar(df)
-
-def compute_performance_table(dataframe, years='si', freq='days', investment_value=0):    
+def compute_performance_table(dataframe, years='si', freq='days'):    
     '''
     Function to calculate a performance table given a dataframe of prices.
     Takes into account the frequency of the data.
     ''' 
     
     if years == 'si':
-        years = len(pd.date_range(dataframe.index[0], dataframe.index[-1], freq='D')) / 365
+        years = len(pd.date_range(dataframe.index[0], dataframe.index[-1], freq='D')) / 365.25
         
-        df = pd.DataFrame([compute_cagr(dataframe, years, investment_value), compute_return(dataframe, investment_value),
+        df = pd.DataFrame([compute_cagr(dataframe, years), compute_return(dataframe),
                            compute_StdDev(dataframe, freq),
                            compute_sharpe(dataframe, years, freq), compute_max_DD(dataframe), compute_mar(dataframe)])
         df.index = ['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']
@@ -179,10 +132,20 @@ def compute_performance_table(dataframe, years='si', freq='days', investment_val
         df['StdDev'] = (df['StdDev'] / 100).apply('{:.2%}'.format)
         df['Max DD'] = (df['Max DD'] / 100).apply('{:.2%}'.format)
         
+        start = str(dataframe.index[0])[0:10]
+        end   = str(dataframe.index[-1])[0:10]
+        print_title('Performance from ' + start + ' to ' + end + ' (≈ ' + str(round(years, 1)) + ' years)')
+        
         # Return object
         return df
 
     if years == 'ytd':
+        
+        df = filter_by_date(dataframe, 'ytd')
+        
+        start = str(df.index[0])[0:10]
+        end   = str(df.index[-1])[0:10]
+        
         df = pd.DataFrame([compute_ytd_cagr(dataframe), compute_ytd_return(dataframe), compute_ytd_StdDev(dataframe),
                            compute_ytd_sharpe(dataframe), compute_ytd_max_DD(dataframe), compute_ytd_mar(dataframe)])
         df.index = ['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']
@@ -194,26 +157,35 @@ def compute_performance_table(dataframe, years='si', freq='days', investment_val
         df['CAGR'] = 'N/A'
         df['StdDev'] = (df['StdDev'] / 100).apply('{:.2%}'.format)
         df['Max DD'] = (df['Max DD'] / 100).apply('{:.2%}'.format)
+        
+        print_title('Performance from ' + start + ' to ' + end + ' (YTD)')
 
         # Return object
         return df
-
-    
+   
     else:
-        df = pd.DataFrame([compute_cagr(dataframe, years, investment_value), compute_return(dataframe, investment_value),
-                           compute_StdDev(dataframe, freq),
-                           compute_sharpe(dataframe, years, freq), compute_max_DD(dataframe), compute_mar(dataframe)])
+        dataframe = filter_by_date(dataframe, years)
+        df = pd.DataFrame([compute_cagr(dataframe, years=years), compute_return(dataframe),
+                           compute_StdDev(dataframe), compute_sharpe(dataframe),
+                           compute_max_DD(dataframe), compute_mar(dataframe)])
         df.index = ['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']
-        
+
         df = round(df.transpose(), 2)
-        
+
         # Colocar percentagens
         df['Return'] = (df['Return'] / 100).apply('{:.2%}'.format)
         df['CAGR'] = (df['CAGR'] / 100).apply('{:.2%}'.format)
         df['StdDev'] = (df['StdDev'] / 100).apply('{:.2%}'.format)
         df['Max DD'] = (df['Max DD'] / 100).apply('{:.2%}'.format)
         
-        # Return object
+        start = str(dataframe.index[0])[0:10]
+        end   = str(dataframe.index[-1])[0:10]
+        
+        if years == 1:
+            print_title('Performance from ' + start + ' to ' + end + ' (' + str(years) + ' year)')
+        else:
+            print_title('Performance from ' + start + ' to ' + end + ' (' + str(years) + ' years)')
+            
         return df
 
 def compute_time_period(timestamp_1, timestamp_2):
@@ -232,20 +204,17 @@ def compute_time_period(timestamp_1, timestamp_2):
     # Returns datetime object in years, month, days
     return(str(year) + ' Years ' + str(month) + ' Months ' + str(day) + ' Days')
 
-def filter_by_date(dataframe, years=0, previous_row=False):
+def filter_by_date(dataframe, years):
+    start = dataframe.index[-1] - DateOffset(years=years)
+
+    if start in dataframe.index:    
+        pass
+    elif start < dataframe.index[0]:
+        raise ValueError("You seem to be selecting a date before the start of the time series")
+    else:
+        start = str(dataframe.loc[:start].tail(1).index)[16:26]
     
-    last_date = dataframe.tail(1).index
-    year_nr = last_date.year.values[0]
-    month_nr = last_date.month.values[0]
-    day_nr = last_date.day.values[0]
-            
-    new_date = str(year_nr - years) + '-' + str(month_nr) + '-' + str(day_nr)
-    
-    if previous_row == False:
-        return dataframe.loc[new_date:]
-    
-    elif previous_row == True:
-        return pd.concat([dataframe.loc[:new_date].tail(1), dataframe.loc[new_date:]])
+    return dataframe.loc[start:]
     
 def get(quotes):
 
@@ -1018,3 +987,32 @@ def ints_to_floats(dataframe):
 def merge_time_series(df_1, df_2, how='outer'):
     df = df_1.merge(df_2, how=how, left_index=True, right_index=True)
     return df
+
+# Criação da função para ler múltiplos ficheiros do investing.com. Inclui opção de começo e fim da análise.
+def read_csv_investing(tickers, start='1900-01-01', stop='2100-01-01'):
+    ETFs = pd.DataFrame()
+
+    # Para cada valor na variável tickers
+    for ticker in tickers:
+        # Ler o ficheiro .csv correspondente, ler as datas e seleccionar só a coluna de preços
+        ETF = pd.read_csv(ticker + '.csv', index_col='Date', parse_dates=True)[['Price']]
+        # Dar o nome do ticker à coluna para depois podermos distinguir na DataFrame
+        ETF.columns = [ticker]
+        # Usar a função merge_time_series usando a opção outer (quando são muitos ETFs aconselho
+        # sempre a função outer para não ir "perdendo" demasiadas cotações simplesmente porque há
+        # um ETF sem cotação nesse dia). Por outro lado a função dropna() força a começarem e 
+        # acabarem no mesmo dia (para serem efectivamente comparáveis)
+        ETFs = pa.merge_time_series(ETFs, ETF, how='outer').dropna()
+
+    # Ordenar as datas para que sejam ascendentes
+    ETFs = ETFs.sort_index(ascending=True)
+    
+    # Acrescentar função de "cortar" a série temporal que por defeito está desde 1900 até 2100, 
+    # o que basicamente é um "atalho" para dizer que não pretendo cortar pois esse periodo deverão
+    # apanhar quaisquer datas para as quais há ETFs do investing
+    ETFs = ETFs[start:stop]
+
+    # Fazer o growth index
+    ETFs_gi = pa.compute_growth_index(ETFs)
+
+    return ETFs_gi
