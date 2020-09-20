@@ -204,17 +204,7 @@ def compute_time_period(timestamp_1, timestamp_2):
     # Returns datetime object in years, month, days
     return(str(year) + ' Years ' + str(month) + ' Months ' + str(day) + ' Days')
 
-def filter_by_date(dataframe, years):
-    start = dataframe.index[-1] - DateOffset(years=years)
-
-    if start in dataframe.index:    
-        pass
-    elif start < dataframe.index[0]:
-        raise ValueError("You seem to be selecting a date before the start of the time series")
-    else:
-        start = str(dataframe.loc[:start].tail(1).index)[16:26]
-    
-    return dataframe.loc[start:]
+ 
     
 def get(quotes):
 
@@ -1016,3 +1006,33 @@ def read_csv_investing(tickers, start='1900-01-01', stop='2100-01-01'):
     ETFs_gi = pa.compute_growth_index(ETFs)
 
     return ETFs_gi
+
+def compute_time_series(dataframe):
+
+#    INPUT: Dataframe of returns
+#    OUTPUT: Growth time series starting in 100
+
+    return (np.exp(np.log1p(dataframe).cumsum())) * 100
+
+def read_xlsl_MSCI(tickers, nomes, start='1990', end='2100'):
+    MSCIs = pd.DataFrame()
+        
+    for ticker in tickers:
+        # Read relevant information
+        MSCI = pd.read_excel(ticker + '.xlsx').iloc[6:].dropna()
+        # Rename columns
+        MSCI.columns = ['Date', 'Price']
+        # Convert the date column to datetime
+        MSCI['Date'] = pd.to_datetime(MSCI['Date'])
+        # Set date column as index
+        MSCI.set_index('Date', inplace=True)
+        # Merge
+        MSCIs = merge_time_series(MSCIs, MSCI, how='outer').dropna()
+        # Start / End
+        MSCIs = MSCIs[start:end]
+        # Growth Index
+        MSCIs = pl.compute_growth_index(MSCIs)
+        
+    MSCIs.columns = nomes
+    
+    return MSCIs
