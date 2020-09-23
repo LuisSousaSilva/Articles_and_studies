@@ -576,7 +576,7 @@ def normalize(df):
     df = df.dropna()
     return (df / df.iloc[0]) * 100
     
-dimensions=(950, 500)
+dimensions=(970, 500)
 
 colorz = ['royalblue', 'orange', 'dimgrey', 'darkorchid']
 
@@ -889,9 +889,11 @@ def filter_by_years(dataframe, years=0):
     return dataframe
 
 def filter_by_date(dataframe, years=0):
+
     '''
     Legacy function
     '''
+    
     last_date = dataframe.tail(1).index
     year_nr = last_date.year.values[0]
     month_nr = last_date.month.values[0]
@@ -1086,12 +1088,12 @@ def compute_time_series(dataframe):
 
     return (np.exp(np.log1p(dataframe).cumsum())) * 100
 
-def read_xlsl_MSCI(tickers, nomes, start='1990', end='2100'):
+def read_xls_MSCI(tickers, nomes, start='1990', end='2100'):
     MSCIs = pd.DataFrame()
         
     for ticker in tickers:
         # Read relevant information
-        MSCI = pd.read_excel(ticker + '.xlsx').iloc[6:].dropna()
+        MSCI = pd.read_excel(ticker + '.xls').iloc[6:].dropna()
         # Rename columns
         MSCI.columns = ['Date', 'Price']
         # Convert the date column to datetime
