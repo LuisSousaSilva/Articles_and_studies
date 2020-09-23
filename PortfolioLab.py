@@ -560,6 +560,9 @@ def compute_drawdowns_i(dataframe):
         
 def print_title(string):
     display(Markdown('**' + string + '**'))
+
+def print_italics(string):
+    display(Markdown('*' + string + '*'))
     
 def all_percent(df, rounding_value=2):
     return round(df, rounding_value).astype(str) + '%'
@@ -885,6 +888,28 @@ def filter_by_years(dataframe, years=0):
 
     return dataframe
 
+def filter_by_date(dataframe, years=0):
+    '''
+    Legacy function
+    '''
+    last_date = dataframe.tail(1).index
+    year_nr = last_date.year.values[0]
+    month_nr = last_date.month.values[0]
+    day_nr = last_date.day.values[0]
+    
+    if month_nr == 2 and day_nr == 29 and years % 4 != 0:
+        new_date = str(year_nr - years) + '-' + str(month_nr) + '-' + str(day_nr-1)        
+    else:
+        new_date = str(year_nr - years) + '-' + str(month_nr) + '-' + str(day_nr)
+    
+    df = dataframe.loc[new_date:]
+    
+    dataframe = pd.concat([dataframe.loc[:new_date].tail(1), dataframe.loc[new_date:]])
+    # Delete repeated days
+    dataframe = dataframe.loc[~dataframe.index.duplicated(keep='first')]
+
+    return dataframe
+
 def color_negative_red(value):
   """
   Colors elements in a dateframe
@@ -903,6 +928,9 @@ def color_negative_red(value):
   return 'color: %s' % color
 
 def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', title='Yearly Returns', color=False):    
+    # Getting star date
+    start = str(dataframe.index[0])[0:10]
+
     # Resampling to yearly (business year)
     yearly_quotes = dataframe.resample('BA').last()
 
@@ -923,14 +951,14 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
     yearly_returns.columns = yearly_returns.columns.map(str)    
     yearly_returns_numeric = yearly_returns.copy()
 
-    if style=='table'and color=='False':
+    if style=='table'and color==False:
         yearly_returns = yearly_returns / 100
-        yearly_returns = yearly_returns.style.applymap(color_negative_red).format("{:.2%}")
+        yearly_returns = yearly_returns.style.format("{:.2%}")
         print_title(title)
 
         return yearly_returns
     
-    elif style=='table' and color:
+    elif style=='table':
         yearly_returns = yearly_returns / 100
         yearly_returns = yearly_returns.style.applymap(color_negative_red).format("{:.2%}")
         print_title(title)
@@ -953,7 +981,7 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
         return yearly_returns
     
     else:
-        print('At least parameter has a wrong input')
+        print('At least one parameter has a wrong input')
 
 def beautify_columns(dataframe, column_numbers, symbol):
     for column_number in column_numbers:
@@ -1080,3 +1108,7 @@ def read_xlsl_MSCI(tickers, nomes, start='1990', end='2100'):
     MSCIs.columns = nomes
     
     return MSCIs
+
+def compute_yearly_returns_warning(dataframe):
+    start = str(dataframe.index[0])[0:10]
+    print_italics('Note: First Year only has performance since ' + start)
