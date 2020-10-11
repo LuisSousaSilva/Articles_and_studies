@@ -7,6 +7,7 @@ import datetime as dt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import investpy
 import quandl
 import plotly
 import time
@@ -560,6 +561,9 @@ def compute_drawdowns_i(dataframe):
         
 def print_title(string):
     display(Markdown('**' + string + '**'))
+
+def print_italics(string):
+    display(Markdown('*' + string + '*'))
     
 def all_percent(df, rounding_value=2):
     return round(df, rounding_value).astype(str) + '%'
@@ -573,7 +577,7 @@ def normalize(df):
     df = df.dropna()
     return (df / df.iloc[0]) * 100
     
-dimensions=(970, 500)
+dimensions=(950, 500)
 
 colorz = ['royalblue', 'orange', 'dimgrey', 'darkorchid']
 
@@ -885,6 +889,30 @@ def filter_by_years(dataframe, years=0):
 
     return dataframe
 
+def filter_by_date(dataframe, years=0):
+
+    '''
+    Legacy function
+    '''
+    
+    last_date = dataframe.tail(1).index
+    year_nr = last_date.year.values[0]
+    month_nr = last_date.month.values[0]
+    day_nr = last_date.day.values[0]
+    
+    if month_nr == 2 and day_nr == 29 and years % 4 != 0:
+        new_date = str(year_nr - years) + '-' + str(month_nr) + '-' + str(day_nr-1)        
+    else:
+        new_date = str(year_nr - years) + '-' + str(month_nr) + '-' + str(day_nr)
+    
+    df = dataframe.loc[new_date:]
+    
+    dataframe = pd.concat([dataframe.loc[:new_date].tail(1), dataframe.loc[new_date:]])
+    # Delete repeated days
+    dataframe = dataframe.loc[~dataframe.index.duplicated(keep='first')]
+
+    return dataframe
+
 def color_negative_red(value):
   """
   Colors elements in a dateframe
@@ -903,6 +931,9 @@ def color_negative_red(value):
   return 'color: %s' % color
 
 def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', title='Yearly Returns', color=False):    
+    # Getting star date
+    start = str(dataframe.index[0])[0:10]
+
     # Resampling to yearly (business year)
     yearly_quotes = dataframe.resample('BA').last()
 
@@ -923,14 +954,14 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
     yearly_returns.columns = yearly_returns.columns.map(str)    
     yearly_returns_numeric = yearly_returns.copy()
 
-    if style=='table'and color=='False':
+    if style=='table'and color==False:
         yearly_returns = yearly_returns / 100
-        yearly_returns = yearly_returns.style.applymap(color_negative_red).format("{:.2%}")
+        yearly_returns = yearly_returns.style.format("{:.2%}")
         print_title(title)
 
         return yearly_returns
     
-    elif style=='table' and color:
+    elif style=='table':
         yearly_returns = yearly_returns / 100
         yearly_returns = yearly_returns.style.applymap(color_negative_red).format("{:.2%}")
         print_title(title)
@@ -953,7 +984,7 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
         return yearly_returns
     
     else:
-        print('At least parameter has a wrong input')
+        print('At least one parameter has a wrong input')
 
 def beautify_columns(dataframe, column_numbers, symbol):
     for column_number in column_numbers:
@@ -1058,7 +1089,30 @@ def compute_time_series(dataframe):
 
     return (np.exp(np.log1p(dataframe).cumsum())) * 100
 
-def read_xlsl_MSCI(tickers, nomes, start='1990', end='2100'):
+def read_xls_MSCI(tickers, nomes, start='1990', end='2100'):
+    MSCIs = pd.DataFrame()
+        
+    for ticker in tickers:
+        # Read relevant information
+        MSCI = pd.read_excel(ticker + '.xls').iloc[6:].dropna()
+        # Rename columns
+        MSCI.columns = ['Date', 'Price']
+        # Convert the date column to datetime
+        MSCI['Date'] = pd.to_datetime(MSCI['Date'])
+        # Set date column as index
+        MSCI.set_index('Date', inplace=True)
+        # Merge
+        MSCIs = merge_time_series(MSCIs, MSCI, how='outer').dropna()
+        # Start / End
+        MSCIs = MSCIs[start:end]
+        # Growth Index
+        MSCIs = compute_growth_index(MSCIs)
+        
+    MSCIs.columns = nomes
+    
+    return MSCIs
+
+def read_xlsx_MSCI(tickers, nomes, start='1990', end='2100'):
     MSCIs = pd.DataFrame()
         
     for ticker in tickers:
@@ -1080,3 +1134,56 @@ def read_xlsl_MSCI(tickers, nomes, start='1990', end='2100'):
     MSCIs.columns = nomes
     
     return MSCIs
+
+def compute_yearly_returns_warning(dataframe):
+    start = str(dataframe.index[0])[0:10]
+    print_italics('Note: First Year only has performance since ' + start)
+    
+def search_investing_etf(isins=False, tickers=False, visual=''):
+    etfs = investpy.get_etfs()
+    
+    if isins:
+        for isin in isins:
+            if visual=='jupyter':
+                display(etfs.loc[etfs['isin'] == isin.upper()][['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+            else:
+                print(etfs.loc[etfs['isin'] == isin.upper()][['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+    
+    elif tickers:
+        for ticker in tickers:
+            if visual=='jupyter':
+                display(etfs.loc[etfs['symbol'] == ticker.upper()].sort_values(by='def_stock_exchange', ascending=False)[['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+            else:
+                print(etfs.loc[etfs['symbol'] == ticker.upper()].sort_values(by='def_stock_exchange', ascending=False)[['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+                
+    else:
+        print('Something went wrong with the function inputs')
+
+def get_quotes_investing_etf(names, countries, colnames='',
+                             begin='1990-01-01', end='2025-01-01',
+                             merge='inner',growth_index=False):    
+    begin = pd.to_datetime(begin).strftime('%d/%m/%Y')
+    end = pd.to_datetime(end).strftime('%d/%m/%Y')
+    iteration = 0
+                         
+    for i in range(len(names)):
+        iteration += 1
+        etf = investpy.get_etf_historical_data(etf=names[i],
+                                              from_date=begin,
+                                              to_date=end,
+                                              country=countries[i])[['Close']]
+        if iteration == 1:
+            etfs = etf.copy()
+        
+        else:
+            etfs = merge_time_series(etfs, etf, how=merge)
+        
+    if colnames:
+        etfs.columns = colnames
+    else:
+        etfs.columns = names
+        
+    if growth_index:
+        etfs = compute_growth_index(etfs)
+        
+    return etfs
