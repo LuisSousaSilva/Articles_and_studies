@@ -598,31 +598,6 @@ class color:
 ##################################################
 ### Begin of compute_drawdowns_table function ####
 ##################################################
-
-### Função auxiliar 1
-def compute_time_period(timestamp_1, timestamp_2):
-    
-    year = timestamp_1.year - timestamp_2.year
-    month = timestamp_1.month - timestamp_2.month
-    day = timestamp_1.day - timestamp_2.day
-    
-    if month < 0:
-        year = year - 1
-        month = 12 + month
-    
-    if day == 0:
-        day = - day
-        
-    if day < 0:
-        month =  month - 1
-        if timestamp_1.month not in [1, 3, 5, 7, 8, 10, 12]:
-            day = 31 + day
-        else:
-            day = 30 + day        
-        
-    # Returns datetime object in years, month, days
-    return(str(year) + ' Years, ' + str(month) + ' Months, ' + str(day) + ' Days')
-
 ### Função auxiliar 2
 def compute_drawdowns_periods(df):
     
@@ -905,8 +880,6 @@ def filter_by_date(dataframe, years=0):
     else:
         new_date = str(year_nr - years) + '-' + str(month_nr) + '-' + str(day_nr)
     
-    df = dataframe.loc[new_date:]
-    
     dataframe = pd.concat([dataframe.loc[:new_date].tail(1), dataframe.loc[new_date:]])
     # Delete repeated days
     dataframe = dataframe.loc[~dataframe.index.duplicated(keep='first')]
@@ -1067,7 +1040,7 @@ def read_csv_investing(tickers, start='1900-01-01', stop='2100-01-01'):
         # sempre a função outer para não ir "perdendo" demasiadas cotações simplesmente porque há
         # um ETF sem cotação nesse dia). Por outro lado a função dropna() força a começarem e 
         # acabarem no mesmo dia (para serem efectivamente comparáveis)
-        ETFs = pa.merge_time_series(ETFs, ETF, how='outer').dropna()
+        ETFs = merge_time_series(ETFs, ETF, how='outer').dropna()
 
     # Ordenar as datas para que sejam ascendentes
     ETFs = ETFs.sort_index(ascending=True)
@@ -1078,7 +1051,7 @@ def read_csv_investing(tickers, start='1900-01-01', stop='2100-01-01'):
     ETFs = ETFs[start:stop]
 
     # Fazer o growth index
-    ETFs_gi = pa.compute_growth_index(ETFs)
+    ETFs_gi = compute_growth_index(ETFs)
 
     return ETFs_gi
 

@@ -480,7 +480,7 @@ def plotly_table(df, width=990, height=500, columnwidth=[25], title=None , index
         py.iplot(fig, show_link=False, config={'modeBarButtonsToRemove': ['sendDataToCloud','hoverCompareCartesian'],
                                                'displayModeBar': False})
 
-def compute_portfolio(quotes, weights):
+def compute_portfolio(quotes, weights, start_amount=100):
     
     Nomes=quotes.columns
     
@@ -582,7 +582,7 @@ def compute_portfolio(quotes, weights):
     # Delete repeated days
     Portfolio = Portfolio.loc[~Portfolio.index.duplicated(keep='first')]
 
-    return Portfolio
+    return Portfolio * (start_amount / 100)
     
 # Multi_period_return (in CAGR)
 def multi_period_return(df, years = 1, days=252):

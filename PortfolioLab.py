@@ -7,6 +7,7 @@ import datetime as dt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import investpy
 import quandl
 import plotly
 import time
@@ -1114,3 +1115,76 @@ def read_xls_MSCI(tickers, nomes, start='1990', end='2100'):
 def compute_yearly_returns_warning(dataframe):
     start = str(dataframe.index[0])[0:10]
     print_italics('Note: First Year only has performance since ' + start)
+    
+def search_investing_etf(isins=False, tickers=False, visual=''):
+    etfs = investpy.get_etfs()
+    
+    if isins:
+        for isin in isins:
+            if visual=='jupyter':
+                display(etfs.loc[etfs['isin'] == isin.upper()][['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+            else:
+                print(etfs.loc[etfs['isin'] == isin.upper()][['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+    
+    elif tickers:
+        for ticker in tickers:
+            if visual=='jupyter':
+                display(etfs.loc[etfs['symbol'] == ticker.upper()].sort_values(by='def_stock_exchange', ascending=False)[['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+            else:
+                print(etfs.loc[etfs['symbol'] == ticker.upper()].sort_values(by='def_stock_exchange', ascending=False)[['symbol', 'isin', 'stock_exchange', 'currency', 'name', 'country']])
+                
+    else:
+        print('Something went wrong with the function inputs')
+
+def get_quotes_investing_etf(names, countries, colnames='',
+                             begin='1990-01-01', end='2025-01-01',
+                             merge='inner',growth_index=False):    
+    begin = pd.to_datetime(begin).strftime('%d/%m/%Y')
+    end = pd.to_datetime(end).strftime('%d/%m/%Y')
+    iteration = 0
+                         
+    for i in range(len(names)):
+        iteration += 1
+        etf = investpy.get_etf_historical_data(etf=names[i],
+                                              from_date=begin,
+                                              to_date=end,
+                                              country=countries[i])[['Close']]
+        if iteration == 1:
+            etfs = etf.copy()
+        
+        else:
+            etfs = merge_time_series(etfs, etf, how=merge)
+        
+    if colnames:
+        etfs.columns = colnames
+    else:
+        etfs.columns = names
+        
+    if growth_index:
+        etfs = compute_growth_index(etfs)
+        
+    return etfs
+
+def read_xlsx_MSCI(tickers, nomes, start='1990', end='2100'):
+    MSCIs = pd.DataFrame()
+        
+    for ticker in tickers:
+        # Read relevant information
+        MSCI = pd.read_excel(ticker + '.xlsx').iloc[6:].dropna()
+        # Rename columns
+        MSCI.columns = ['Date', 'Price']
+        # Convert the date column to datetime
+        MSCI['Date'] = pd.to_datetime(MSCI['Date'])
+        # Set date column as index
+        MSCI.set_index('Date', inplace=True)
+        # Merge
+        MSCIs = merge_time_series(MSCIs, MSCI, how='outer').dropna()
+        # Start / End
+        MSCIs = MSCIs[start:end]
+        # Growth Index
+        MSCIs = compute_growth_index(MSCIs)
+        
+    MSCIs.columns = nomes
+    
+    return MSCIs
+    

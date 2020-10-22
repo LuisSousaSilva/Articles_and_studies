@@ -876,8 +876,6 @@ def filter_by_years(dataframe, years=0):
     else:
         new_date = str(year_nr - years) + '-' + str(month_nr) + '-' + str(day_nr)
     
-    df = dataframe.loc[new_date:]
-    
     dataframe = pd.concat([dataframe.loc[:new_date].tail(1), dataframe.loc[new_date:]])
     # Delete repeated days
     dataframe = dataframe.loc[~dataframe.index.duplicated(keep='first')]
