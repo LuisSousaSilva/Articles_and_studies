@@ -59,7 +59,7 @@ investments.set_index('Age', inplace=True)
 investments
 # %%
 poupança = 2500
-rentabilidade = 0.1
+rentabilidade = 0.06
 
 investments['25A'] = 0
 investments = investments[['25A']]
