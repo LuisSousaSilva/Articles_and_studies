@@ -855,19 +855,139 @@ def merge_time_series(df_1, df_2, how='left'):
     df = df_1.merge(df_2, how=how, left_index=True, right_index=True)
     return df
 
+colors_list=['royalblue', 'rgb(255, 127, 14)',
+           'dimgrey', 'rgb(86, 53, 171)',  'rgb(44, 160, 44)',
+           'rgb(214, 39, 40)',
+           'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+           'rgb(227, 119, 194)', 'rgb(127, 127, 127)',
+           'rgb(188, 189, 34)', 'rgb(23, 190, 207)']
+
+lightcolors = [
+    'royalblue',
+   'rgb(111, 231, 219)',
+   'rgb(131, 90, 241)',
+              
+              ]
+
+def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='normal',
+        width=950, height=500, hovermode='x', yticksuffix='', ytickprefix='',
+        source_text='', y_position_source='-0.125'):
+
+    '''
+    style: normal, area
+    colors: color_list or lightcolors
+    hovermode: 'x', 'x unified', 'closest'
+    y_position_source: -0.125 or bellow
+    
+    '''
+    fig = go.Figure()
+
+    fig.update_layout(
+        paper_bgcolor='#F5F6F9',
+        plot_bgcolor='#F5F6F9',
+        width=width,
+        height=height,
+        hovermode=hovermode,
+        title=title,
+        title_x=0.5,
+        yaxis = dict(
+            ticksuffix=yticksuffix,
+            tickprefix=ytickprefix,
+            tickfont=dict(color='#4D5663'),
+            gridcolor='#E1E5ED',
+            titlefont=dict(color='#4D5663'),
+            zerolinecolor='#E1E5ED',
+            title=yTitle,
+            showgrid=True,
+                    ),
+        xaxis = dict(
+            title=xTitle,
+            tickfont=dict(color='#4D5663'),
+            gridcolor='#E1E5ED',
+            titlefont=dict(color='#4D5663'),
+            zerolinecolor='#E1E5ED',
+            showgrid=True,
+                    ),
+        images= [dict(
+        name= "watermark_1",
+        source= "https://raw.githubusercontent.com/LuisSousaSilva/Articles_and_studies/master/logo-future-proof_smaller.png",
+        xref= "paper",
+        yref= "paper",
+        x= -0.03,
+        y= -0.1,
+        sizex= 0.2,
+        sizey= 0.1,
+        opacity= 0.2,
+        layer= "below"
+        )],
+        annotations=[dict(
+        xref="paper",
+        yref="paper",
+        x= 0.5,
+        y= y_position_source,
+        xanchor="center",
+        yanchor="top",
+        text=source_text,
+        showarrow= False,
+        font= dict(
+            family="Arial",
+            size=12,
+            color="rgb(150,150,150)"
+            )
+        )
+    ]
+
+    ), # end
+
+    if style=='normal':
+        z = -1
+        
+        for i in data:
+            z = z + 1
+            fig.add_trace(go.Scatter(
+                x=data.index,
+                y=data[i],
+                mode='lines',
+                name=i,
+                line=dict(width=1.3,
+                        color=colors[z]),
+            ))
+
+    if style=='area':
+        z = -1
+        
+        for i in data:
+            z = z + 1
+            fig.add_trace(go.Scatter(
+                x=data.index,
+                y=data[i],
+                hoverinfo='x+y',
+                mode='lines',
+                name=i,
+                line=dict(width=0.7,
+                        color=colors[z]),
+                stackgroup='one' # define stack group
+            ))
+
+    return fig
+
 def compute_rolling_cagr(dataframe, years):
-    rolling_result = []
-    number = len(dataframe)
+    start_time = time.time()
 
-    for i in np.arange(1, number + 1):
-        df = dataframe.iloc[:i]
-        df = filter_by_years(df, years=years)
-        result = (((df.iloc[-1] / df.iloc[0]) ** (1/years) - 1))
-        rolling_result.append(result[0])
+    index = dataframe.index + pd.DateOffset(years=years)
 
-    final_df = pd.DataFrame(data = rolling_result, index = dataframe.index[0:number], columns = ['Ret'])
-    final_df = final_df.loc[dataframe.index[0] + pd.DateOffset(years=years):]
-    return final_df
+    start = dataframe.index[0]
+    end   = dataframe.index[-1]
+
+    portfolio = dataframe.copy()
+    portfolio.set_index(index, inplace=True)
+
+    portfolio = portfolio[start:]
+
+    rr = (dataframe. iloc[:, 0] / portfolio. iloc[:, 0]  - 1) * 100
+    rr = rr.loc[:end]
+    
+    return pd.DataFrame(((((rr/100) + 1))**(1/years))-1)
 
 def filter_by_years(dataframe, years=0):
     
@@ -944,10 +1064,10 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
 
     # Returns
     yearly_returns = ((yearly_quotes / yearly_quotes.shift(1)) - 1) * 100
-    yearly_returns = yearly_returns.set_index([list(range(first_year, last_year))]).drop(first_year)
+    yearly_returns = yearly_returns.set_index([list(range(first_year, last_year))])
 
     #### Inverter o sentido das rows no dataframe ####
-    yearly_returns = yearly_returns.loc[start:end].transpose()
+    yearly_returns = yearly_returns.loc[2014:end].transpose()
     yearly_returns = round(yearly_returns, 2)
 
     # As strings and percentages
@@ -1082,12 +1202,12 @@ def read_csv_investing(tickers, start='1900-01-01', stop='2100-01-01'):
 
     return ETFs_gi
 
-def compute_time_series(dataframe):
+def compute_time_series(dataframe, start_value=100):
 
 #    INPUT: Dataframe of returns
 #    OUTPUT: Growth time series starting in 100
 
-    return (np.exp(np.log1p(dataframe).cumsum())) * 100
+    return (np.exp(np.log1p(dataframe).cumsum())) * start_value
 
 def read_xls_MSCI(tickers, nomes, start='1990', end='2100'):
     MSCIs = pd.DataFrame()
