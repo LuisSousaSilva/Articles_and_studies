@@ -190,6 +190,76 @@ def compute_performance_table(dataframe, years='si', freq='days'):
             
         return df
 
+def compute_performance_table_no_title(dataframe, years='si', freq='days'):    
+    '''
+    Function to calculate a performance table given a dataframe of prices.
+    Takes into account the frequency of the data.
+    ''' 
+    
+    if years == 'si':
+        years = len(pd.date_range(dataframe.index[0], dataframe.index[-1], freq='D')) / 365.25
+        
+        df = pd.DataFrame([compute_cagr(dataframe, years), compute_return(dataframe),
+                           compute_StdDev(dataframe, freq),
+                           compute_sharpe(dataframe, years, freq), compute_max_DD(dataframe), compute_mar(dataframe)])
+        df.index = ['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']
+        
+        df = round(df.transpose(), 2)
+        
+        # Colocar percentagens
+        df['Return'] = (df['Return'] / 100).apply('{:.2%}'.format)
+        df['CAGR'] = (df['CAGR'] / 100).apply('{:.2%}'.format)
+        df['StdDev'] = (df['StdDev'] / 100).apply('{:.2%}'.format)
+        df['Max DD'] = (df['Max DD'] / 100).apply('{:.2%}'.format)
+        
+        start = str(dataframe.index[0])[0:10]
+        end   = str(dataframe.index[-1])[0:10]
+        
+        # Return object
+        return df
+
+    if years == 'ytd':
+        
+        df = filter_by_date(dataframe, 'ytd')
+        
+        start = str(df.index[0])[0:10]
+        end   = str(df.index[-1])[0:10]
+        
+        df = pd.DataFrame([compute_ytd_cagr(dataframe), compute_ytd_return(dataframe), compute_ytd_StdDev(dataframe),
+                           compute_ytd_sharpe(dataframe), compute_ytd_max_DD(dataframe), compute_ytd_mar(dataframe)])
+        df.index = ['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']
+        
+        df = round(df.transpose(), 2)
+        
+        # Colocar percentagens
+        df['Return'] = (df['Return'] / 100).apply('{:.2%}'.format)
+        df['CAGR'] = 'N/A'
+        df['StdDev'] = (df['StdDev'] / 100).apply('{:.2%}'.format)
+        df['Max DD'] = (df['Max DD'] / 100).apply('{:.2%}'.format)
+
+        # Return object
+        return df
+   
+    else:
+        dataframe = filter_by_date(dataframe, years)
+        df = pd.DataFrame([compute_cagr(dataframe, years=years), compute_return(dataframe),
+                           compute_StdDev(dataframe), compute_sharpe(dataframe),
+                           compute_max_DD(dataframe), compute_mar(dataframe)])
+        df.index = ['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']
+
+        df = round(df.transpose(), 2)
+
+        # Colocar percentagens
+        df['Return'] = (df['Return'] / 100).apply('{:.2%}'.format)
+        df['CAGR'] = (df['CAGR'] / 100).apply('{:.2%}'.format)
+        df['StdDev'] = (df['StdDev'] / 100).apply('{:.2%}'.format)
+        df['Max DD'] = (df['Max DD'] / 100).apply('{:.2%}'.format)
+        
+        start = str(dataframe.index[0])[0:10]
+        end   = str(dataframe.index[-1])[0:10]
+            
+        return df
+
 def compute_time_period(timestamp_1, timestamp_2):
     
     year = timestamp_1.year - timestamp_2.year
@@ -777,64 +847,53 @@ def compute_ms_performance_table(DataFrame, freq='days'):
         df = compute_performance_table(DataFrame, freq=freq)
         df.index = ['S.I.']
         df = df[['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']]
-        return df
 
     elif nr_of_days >= 365 and nr_of_days < 365*3:
         df0 = compute_performance_table(DataFrame)
-        df_ytd = compute_performance_table(DataFrame, years='ytd')
-        df1 = compute_performance_table(filter_by_date(DataFrame, years=1), freq=freq)
+        df1 = compute_performance_table_no_title(DataFrame, years=1)
         df = pd.concat([df0, df_ytd, df1])
         df.index = ['S.I.', 'YTD', '1 Year']
         df = df[['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']]
-        return df
 
     elif nr_of_days >= 365*3 and nr_of_days < 365*5:
         df0 = compute_performance_table(DataFrame)
-        df1 = compute_performance_table(filter_by_date(DataFrame, years=1), freq=freq)
-        df3 = compute_performance_table(filter_by_date(DataFrame, years=3), freq=freq)
+        df1 = compute_performance_table_no_title(DataFrame, years=1)
+        df3 = compute_performance_table_no_title(DataFrame, years=3)
         df = pd.concat([df0, df1, df3])
         df.index = ['S.I.', '1 Year', '3 Years']
         df = df[['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']]
 
-        return df
-
-    elif nr_of_days >= 365*5 and nr_of_days < 365*10:
+    if nr_of_days >= 365*5 and nr_of_days < 365*10:
         df0 = compute_performance_table(DataFrame)
-        df_ytd = compute_performance_table(DataFrame, years='ytd')
-        df1 = compute_performance_table(filter_by_date(DataFrame, years=1), freq=freq)
-        df3 = compute_performance_table(filter_by_date(DataFrame, years=3), freq=freq)
-        df5 = compute_performance_table(filter_by_date(DataFrame, years=5), freq=freq)
-        df = pd.concat([df0, df_ytd, df1, df3, df5])
-        df.index = ['S.I.', 'YTD', '1 Year', '3 Years', '5 Years']
+        df1 = compute_performance_table_no_title(DataFrame, years=1)
+        df3 = compute_performance_table_no_title(DataFrame, years=3)
+        df5 = compute_performance_table_no_title(DataFrame, years=5)
+        df = pd.concat([df0, df1, df3, df5])
+        df.index = ['S.I.', '1 Year', '3 Years', '5 Years']
         df = df[['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']]
-
-        return df
 
     elif nr_of_days >= 365*10 and nr_of_days < 365*15:
-        df0 = compute_performance_table(DataFrame, freq=freq)        
-        df_ytd = compute_performance_table(DataFrame, years='ytd')
-        df1 = compute_performance_table(filter_by_date(DataFrame, years=1), freq=freq)
-        df3 = compute_performance_table(filter_by_date(DataFrame, years=3), freq=freq)
-        df5 = compute_performance_table(filter_by_date(DataFrame, years=5), freq=freq)
-        df10 = compute_performance_table(filter_by_date(DataFrame, years=10), freq=freq)
-        df = pd.concat([df0, df_ytd, df1, df3, df5, df10])
-        df.index = ['S.I.', 'YTD', '1 Year', '3 Years', '5 Years', '10 Years']
+        df0 = compute_performance_table(DataFrame)
+        df1 = compute_performance_table_no_title(DataFrame, years=1)
+        df3 = compute_performance_table_no_title(DataFrame, years=3)
+        df5 = compute_performance_table_no_title(DataFrame, years=5)
+        df10 = compute_performance_table_no_title(DataFrame, years=10)
+        df = pd.concat([df0, df1, df3, df5, df10])
+        df.index = ['S.I.', '1 Year', '3 Years', '5 Years', '10 Years']
         df = df[['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']]
 
-        return df
-
     elif nr_of_days >= 365*15 and nr_of_days < 365*20:
-        df0 = compute_performance_table(DataFrame, freq=freq)
-        df1 = compute_performance_table(filter_by_date(DataFrame, years=1), freq=freq)
-        df3 = compute_performance_table(filter_by_date(DataFrame, years=3), freq=freq)
-        df5 = compute_performance_table(filter_by_date(DataFrame, years=5), freq=freq)
-        df10 = compute_performance_table(filter_by_date(DataFrame, years=10), freq=freq)
-        df15 = compute_performance_table(filter_by_date(DataFrame, years=15), freq=freq)
+        df0 = compute_performance_table(DataFrame)
+        df1 = compute_performance_table_no_title(DataFrame, years=1)
+        df3 = compute_performance_table_no_title(DataFrame, years=3)
+        df5 = compute_performance_table_no_title(DataFrame, years=5)
+        df10 = compute_performance_table_no_title(DataFrame, years=10)
+        df15= compute_performance_table_no_title(DataFrame, years=15)
         df = pd.concat([df0, df1, df3, df5, df10, df15])
         df.index = ['S.I.', '1 Year', '3 Years', '5 Years', '10 Years', '15 Years']
         df = df[['CAGR', 'Return', 'StdDev', 'Sharpe', 'Max DD', 'MAR']]
 
-        return df
+    return df
 
 def compute_log_returns(prices):
     """
@@ -857,7 +916,7 @@ def merge_time_series(df_1, df_2, how='left'):
 
 colors_list=['royalblue', 'rgb(255, 127, 14)',
            'dimgrey', 'rgb(86, 53, 171)',  'rgb(44, 160, 44)',
-           'rgb(214, 39, 40)',
+           'rgb(214, 39, 40)', '#ffd166', '#62959c', '#b5179e',
            'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
            'rgb(227, 119, 194)', 'rgb(127, 127, 127)',
            'rgb(188, 189, 34)', 'rgb(23, 190, 207)']
@@ -871,13 +930,16 @@ lightcolors = [
 
 def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='normal',
         width=950, height=500, hovermode='x', yticksuffix='', ytickprefix='',
-        source_text='', y_position_source='-0.125'):
+        ytickformat="", source_text='', y_position_source='-0.125', xticksuffix='',
+        xtickprefix='', xtickformat="", dd_range=[-50, 0]):
 
     '''
-    style: normal, area
-    colors: color_list or lightcolors
-    hovermode: 'x', 'x unified', 'closest'
-    y_position_source: -0.125 or bellow
+    style = normal, area
+    colors = color_list or lightcolors
+    hovermode = 'x', 'x unified', 'closest'
+    y_position_source = -0.125 or bellow
+    dd_range = [-50, 0]
+    ytickformat =  ".1%"
     
     '''
     fig = go.Figure()
@@ -899,6 +961,7 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
             zerolinecolor='#E1E5ED',
             title=yTitle,
             showgrid=True,
+            tickformat=ytickformat,
                     ),
         xaxis = dict(
             title=xTitle,
@@ -907,14 +970,17 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
             titlefont=dict(color='#4D5663'),
             zerolinecolor='#E1E5ED',
             showgrid=True,
+            tickformat=xtickformat,
+            ticksuffix=xticksuffix,
+            tickprefix=xtickprefix,
                     ),
         images= [dict(
         name= "watermark_1",
-        source= "https://raw.githubusercontent.com/LuisSousaSilva/Articles_and_studies/master/logo-future-proof_smaller.png",
+        source= "https://raw.githubusercontent.com/LuisSousaSilva/Articles_and_studies/master/LOGO-future-blue.png",
         xref= "paper",
         yref= "paper",
-        x= -0.03,
-        y= -0.1,
+        x= -0.0325,
+        y= -0.125,
         sizex= 0.2,
         sizey= 0.1,
         opacity= 0.2,
@@ -968,6 +1034,18 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
                         color=colors[z]),
                 stackgroup='one' # define stack group
             ))
+
+    if style=='drawdowns_histogram':
+        fig.add_trace(go.Histogram(x=data.iloc[:, 0],
+                     histnorm='probability',
+                     marker=dict(colorscale='RdBu',
+                                 reversescale=False,
+                                 cmin=-24,
+                                 cmax=0,
+                                 color=np.arange(start=dd_range[0], stop=dd_range[1]),
+                                 line=dict(color='white', width=0.2)),
+                     opacity=0.75,
+                     cumulative=dict(enabled=True)))
 
     return fig
 
@@ -1050,8 +1128,12 @@ def color_negative_red(value):
 
   return 'color: %s' % color
 
-def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', title='Yearly Returns', color=False):    
-    # Getting star date
+def compute_yearly_returns(dataframe, start='1900', end='2100', style='table',
+                        title='Yearly Returns', color=False, warning=True): 
+    '''
+    Style: table // string // chart
+    '''
+    # Getting start date
     start = str(dataframe.index[0])[0:10]
 
     # Resampling to yearly (business year)
@@ -1067,7 +1149,7 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
     yearly_returns = yearly_returns.set_index([list(range(first_year, last_year))])
 
     #### Inverter o sentido das rows no dataframe ####
-    yearly_returns = yearly_returns.loc[2014:end].transpose()
+    yearly_returns = yearly_returns.loc[first_year + 1:last_year].transpose()
     yearly_returns = round(yearly_returns, 2)
 
     # As strings and percentages
@@ -1079,20 +1161,17 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
         yearly_returns = yearly_returns.style.format("{:.2%}")
         print_title(title)
 
-        return yearly_returns
     
     elif style=='table':
         yearly_returns = yearly_returns / 100
         yearly_returns = yearly_returns.style.applymap(color_negative_red).format("{:.2%}")
         print_title(title)
 
-        return yearly_returns
 
     elif style=='string':
         for column in yearly_returns:
             yearly_returns[column] = yearly_returns[column].apply( lambda x : str(x) + '%')
 
-        return yearly_returns
         
     elif style=='chart':
         fig, ax = plt.subplots()
@@ -1100,8 +1179,6 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table', t
         yearly_returns = sns.heatmap(yearly_returns_numeric, annot=True, cmap="RdYlGn", linewidths=.2, fmt=".2f", cbar=False, center=0)
         for t in yearly_returns.texts: t.set_text(t.get_text() + "%")
         plt.title(title)
-
-        return yearly_returns
     
     else:
         print('At least one parameter has a wrong input')
