@@ -1,6 +1,7 @@
 # importing libraries
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
+import statsmodels.api as sm
 import plotly.offline as py
 import cufflinks as cf
 import datetime as dt
@@ -511,6 +512,15 @@ def plotly_table(df, width=990, height=500, columnwidth=[25], title=None , index
         py.iplot(fig, show_link=False, config={'modeBarButtonsToRemove': ['sendDataToCloud','hoverCompareCartesian'],
                                                'displayModeBar': False})
 
+def get_quotes(tickers, names, normalize=False):
+    Quotes = pd.read_csv('D:/GDrive/_GitHub/Backtester/Data/Cotacoes_diarias_all.csv', index_col='Date', parse_dates=True)[tickers].dropna()
+    Quotes.columns=names
+    
+    if normalize==True:
+        return normalize(Quotes)
+    else:
+        return Quotes
+
 def compute_portfolio(quotes, weights):
     
     Nomes=quotes.columns
@@ -815,7 +825,7 @@ def compute_r2_table(df, benchmark):
     
     Dataframe.index = df.columns
     
-    Dataframe.columns = [benchmark.name]
+    Dataframe.columns = benchmark.columns
     
     return(round(Dataframe.transpose(), 3))
 
@@ -914,7 +924,7 @@ def merge_time_series(df_1, df_2, how='left'):
     df = df_1.merge(df_2, how=how, left_index=True, right_index=True)
     return df
 
-colors_list=['royalblue', 'rgb(255, 127, 14)',
+colors_list=['royalblue', 'darkorange',
            'dimgrey', 'rgb(86, 53, 171)',  'rgb(44, 160, 44)',
            'rgb(214, 39, 40)', '#ffd166', '#62959c', '#b5179e',
            'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
@@ -928,13 +938,27 @@ lightcolors = [
               
               ]
 
+def coolors(colors_array):
+    hex_colors_array = []
+    for i in colors_array:
+        hex_color = '#' + i
+        hex_colors_array.append(hex_color)
+
+    return hex_colors_array
+
+# https://coolors.co/7400b8-6930c3-5e60ce-5390d9-4ea8de-48bfe3-56cfe1-64dfdf-72efdd-80ffdb
+colors_list = coolors(["7400b8","6930c3","5e60ce","5390d9","4ea8de",
+                        "48bfe3","56cfe1","64dfdf","72efdd","80ffdb"])
+
 def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='normal',
         width=950, height=500, hovermode='x', yticksuffix='', ytickprefix='',
         ytickformat="", source_text='', y_position_source='-0.125', xticksuffix='',
-        xtickprefix='', xtickformat="", dd_range=[-50, 0]):
+        xtickprefix='', xtickformat="", dd_range=[-50, 0], y_axis_range_range=None,
+        bar_x_axis='', bar_y_axis='', bar_labels='', bar_dtick='', bar_colors='',
+        showlegend=True, colab=True):
 
     '''
-    style = normal, area
+    style = normal, area, drawdowns_histogram, bar
     colors = color_list or lightcolors
     hovermode = 'x', 'x unified', 'closest'
     y_position_source = -0.125 or bellow
@@ -952,11 +976,13 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
         hovermode=hovermode,
         title=title,
         title_x=0.5,
+        showlegend=showlegend,
         yaxis = dict(
             ticksuffix=yticksuffix,
             tickprefix=ytickprefix,
             tickfont=dict(color='#4D5663'),
             gridcolor='#E1E5ED',
+            range=y_axis_range_range,
             titlefont=dict(color='#4D5663'),
             zerolinecolor='#E1E5ED',
             title=yTitle,
@@ -973,33 +999,33 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
             tickformat=xtickformat,
             ticksuffix=xticksuffix,
             tickprefix=xtickprefix,
-                    ),
+                   ),
         images= [dict(
-        name= "watermark_1",
-        source= "https://raw.githubusercontent.com/LuisSousaSilva/Articles_and_studies/master/LOGO-future-blue.png",
-        xref= "paper",
-        yref= "paper",
-        x= -0.0325,
-        y= -0.125,
-        sizex= 0.2,
-        sizey= 0.1,
-        opacity= 0.2,
-        layer= "below"
+            name= "watermark_1",
+            source= "https://raw.githubusercontent.com/LuisSousaSilva/Articles_and_studies/master/LOGO-future-blue.png",
+            xref= "paper",
+            yref= "paper",
+            x= -0.0325,
+            y= -0.125,
+            sizex= 0.2,
+            sizey= 0.1,
+            opacity= 0.2,
+            layer= "below"
         )],
         annotations=[dict(
-        xref="paper",
-        yref="paper",
-        x= 0.5,
-        y= y_position_source,
-        xanchor="center",
-        yanchor="top",
-        text=source_text,
-        showarrow= False,
-        font= dict(
-            family="Arial",
-            size=12,
-            color="rgb(150,150,150)"
-            )
+            xref="paper",
+            yref="paper",
+            x= 0.5,
+            y= y_position_source,
+            xanchor="center",
+            yanchor="top",
+            text=source_text,
+            showarrow= False,
+            font= dict(
+                family="Arial",
+                size=12,
+                color="rgb(150,150,150)"
+                )
         )
     ]
 
@@ -1042,12 +1068,49 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
                                  reversescale=False,
                                  cmin=-24,
                                  cmax=0,
-                                 color=np.arange(start=dd_range[0], stop=dd_range[1]),
+                                 color=np.arange(start=dd_range[0],
+                                                 stop=dd_range[1]),
                                  line=dict(color='white', width=0.2)),
                      opacity=0.75,
                      cumulative=dict(enabled=True)))
 
-    return fig
+    if style=='bar':
+        for i in range (0, len(data)):
+            fig.add_trace(go.Bar(x=[bar_x_axis[i]],
+                                 y=[bar_y_axis[i]],
+                                 name=bar_labels[i],
+                                 marker_color=bar_colors[i]))
+            fig.update_layout(xaxis = dict(dtick = bar_dtick))
+
+    if colab == True:
+        return fig.show(renderer="colab")
+    else:
+        return fig
+
+def web_scrap(url, tag, start='', end='', get_tag='',
+              data_type='', print_all_tags=False,
+              date_format='%d-%m-%Y'):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    if print_all_tags==True:
+        x=0
+        for value in soup.findAll(tag):
+            print(value)
+            print(x)
+            x=x+1
+    elif print_all_tags==False:
+        mil = str(soup.findAll(tag)[get_tag])
+        start = start
+        end = end
+        value_str = mil[mil.find(start)+len(start):mil.rfind(end)]
+        value_str_point = value_str.replace(',', '.')
+        
+        if data_type=='numeric':
+            return float(value_str_point)
+        if data_type=='date':
+            return pd.to_datetime(value_str_point, format=date_format)
+        else:
+            return value_str
 
 def compute_rolling_cagr(dataframe, years):
     start_time = time.time()
@@ -1167,6 +1230,9 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table',
         yearly_returns = yearly_returns.style.applymap(color_negative_red).format("{:.2%}")
         print_title(title)
 
+    elif style=='numeric':
+        yearly_returns = yearly_returns_numeric.copy()
+
 
     elif style=='string':
         for column in yearly_returns:
@@ -1182,6 +1248,8 @@ def compute_yearly_returns(dataframe, start='1900', end='2100', style='table',
     
     else:
         print('At least one parameter has a wrong input')
+
+    return yearly_returns
 
 def beautify_columns(dataframe, column_numbers, symbol):
     for column_number in column_numbers:
@@ -1264,7 +1332,7 @@ def read_csv_investing(tickers, start='1900-01-01', stop='2100-01-01'):
         # sempre a função outer para não ir "perdendo" demasiadas cotações simplesmente porque há
         # um ETF sem cotação nesse dia). Por outro lado a função dropna() força a começarem e 
         # acabarem no mesmo dia (para serem efectivamente comparáveis)
-        ETFs = pa.merge_time_series(ETFs, ETF, how='outer').dropna()
+        ETFs = merge_time_series(ETFs, ETF, how='outer').dropna()
 
     # Ordenar as datas para que sejam ascendentes
     ETFs = ETFs.sort_index(ascending=True)
