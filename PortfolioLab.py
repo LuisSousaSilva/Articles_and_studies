@@ -12,6 +12,7 @@ import investpy
 import quandl
 import plotly
 import time
+import math
 
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 from IPython.display import Markdown, display
@@ -41,6 +42,104 @@ from datetime import date
 today = date.today()
 
 #### Functions ####
+def compute_portfolio_with_contributions(df, weights, start_value=100):
+    
+    weights_sum = sum(weights)
+    
+    if math.isclose(weights_sum, 1):
+        pass
+    else:
+        raise ValueError('Sum of weights must be 1.')            
+        
+    start = df.index[0]
+    Contribuição_diária_individual_all = pd.DataFrame()
+
+    # Start and End date for backtest
+    start = df.index[0]
+    end = df.index[-1]
+
+    # Calculate the rebalancing days dates (including inception date)
+    start_index = pd.date_range(start=start, end=start, periods=1)
+    end_index = pd.date_range(start=end, end=end, periods=1)    
+    rebalancing_days = pd.date_range(start=start, end=end, freq='A').union(start_index)
+    
+    if end_index not in rebalancing_days:
+        rebalancing_days = rebalancing_days.union(end_index)
+
+    weights = weights
+    n_assets = len(weights)
+    start_value = start_value
+    active_weights = weights.copy()
+
+
+    for i in range(1, len(rebalancing_days)):
+
+        # Select period between rebalances
+        quotes = df[rebalancing_days[i-1]:rebalancing_days[i]]
+
+        n_days = len(quotes)
+
+        Evolução = quotes / quotes.iloc[0]
+        
+        UPs = np.tile(active_weights, n_days)        
+        UPs.shape = (n_days, n_assets)
+        UPs = pd.DataFrame(UPs)
+        UPs.columns = quotes.columns
+        UPs = UPs * 100    
+        UPs.set_index(quotes.index, inplace=True)
+
+        Evolução_no_portfolio = Evolução.mul(UPs, axis=1)
+
+        Contribuição_do_dia = Evolução_no_portfolio - Evolução_no_portfolio.shift(1)
+
+        Contribuição_diária_individual_all = pd.concat([Contribuição_diária_individual_all, Contribuição_do_dia.dropna()])
+
+        Contribuição_no_portfolio = Contribuição_do_dia.cumsum()
+
+        Portfolio = pd.DataFrame(Contribuição_diária_individual_all.dropna().cumsum().sum(axis=1)) + 100
+
+        active_weights = (weights * np.repeat(Portfolio.iloc[-1][0], len(active_weights))) / 100
+        
+    Contribuição_individual = Contribuição_diária_individual_all.cumsum()    
+    Contribuição_individual = Contribuição_individual[Contribuição_individual.index.dayofweek < 5]
+    
+    Portfolio.columns = ['Portfolio']
+    Portfolio = Portfolio[Portfolio.index.dayofweek < 5]
+    
+    # Add initial day to portfolio   
+    inicial_day_portfolio = pd.DataFrame({'Portfolio':[100]}, index=[start])
+    Portfolio = pd.concat([inicial_day_portfolio, Portfolio])
+    
+    # Add initial day to Contribuição_individual
+    ic_array = np.repeat(0, len(df.columns))
+    inicial_day_ci = pd.DataFrame([ic_array], index=[start])
+    inicial_day_ci.columns=df.columns
+    Contribuição_individual = pd.concat([inicial_day_ci, Contribuição_individual])
+    
+    return Portfolio, Contribuição_individual
+
+def get_quotes(tickers, names, normalize=False):
+    Quotes = pd.read_csv('D:/GDrive/_GitHub/Backtester/Data/Cotacoes_diarias_all.csv', index_col='Date', parse_dates=True)[tickers].dropna()
+    Quotes.columns=names
+    
+    if normalize:
+        return normalize(Quotes)
+    else:
+        return Quotes
+    
+def deflate(data, inflation_rate='0.02'):
+    '''
+    DATA = Dataframe with nominal values to deflate at
+    the given inflation rate inflation rate
+    '''
+    df = pd.DataFrame(0, index=data.index, columns=['Deflator', 'Inflation'])
+    df['Inflation'] = 1 + 0.02
+    df['Inflation'].iloc[0] = 1
+    df['Deflator'] = df['Inflation'].cumprod() * 100
+    data_deflated = data.div(df['Deflator'], axis=0).mul(100)
+    
+    return data_deflated
+
 def compute_growth_index(dataframe, initial_value=100, initial_cost=0, ending_cost=0):
     initial_cost = initial_cost / 100
     ending_cost  = ending_cost / 100
@@ -925,11 +1024,11 @@ def merge_time_series(df_1, df_2, how='left'):
     return df
 
 colors_list=['royalblue', 'darkorange',
-           'dimgrey', 'rgb(86, 53, 171)',  'rgb(44, 160, 44)',
-           'rgb(214, 39, 40)', '#ffd166', '#62959c', '#b5179e',
-           'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
-           'rgb(227, 119, 194)', 'rgb(127, 127, 127)',
-           'rgb(188, 189, 34)', 'rgb(23, 190, 207)']
+            'dimgrey', 'rgb(86, 53, 171)',  'rgb(44, 160, 44)',
+            'rgb(214, 39, 40)', '#ffd166', '#62959c', '#b5179e',
+            'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+            'rgb(227, 119, 194)', 'rgb(127, 127, 127)',
+            'rgb(188, 189, 34)', 'rgb(23, 190, 207)']
 
 lightcolors = [
     'royalblue',
@@ -947,7 +1046,7 @@ def coolors(colors_array):
     return hex_colors_array
 
 # https://coolors.co/7400b8-6930c3-5e60ce-5390d9-4ea8de-48bfe3-56cfe1-64dfdf-72efdd-80ffdb
-colors_list = coolors(["7400b8","6930c3","5e60ce","5390d9","4ea8de",
+colors_list_2 = coolors(["7400b8","6930c3","5e60ce","5390d9","4ea8de",
                         "48bfe3","56cfe1","64dfdf","72efdd","80ffdb"])
 
 def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='normal',
@@ -955,7 +1054,7 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
         ytickformat="", source_text='', y_position_source='-0.125', xticksuffix='',
         xtickprefix='', xtickformat="", dd_range=[-50, 0], y_axis_range_range=None,
         bar_x_axis='', bar_y_axis='', bar_labels='', bar_dtick='', bar_colors='',
-        showlegend=True, colab=True):
+        showlegend=True, colab=True, logo=''):
 
     '''
     style = normal, area, drawdowns_histogram, bar
@@ -977,6 +1076,7 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
         title=title,
         title_x=0.5,
         showlegend=showlegend,
+
         yaxis = dict(
             ticksuffix=yticksuffix,
             tickprefix=ytickprefix,
@@ -989,6 +1089,7 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
             showgrid=True,
             tickformat=ytickformat,
                     ),
+
         xaxis = dict(
             title=xTitle,
             tickfont=dict(color='#4D5663'),
@@ -1000,18 +1101,7 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
             ticksuffix=xticksuffix,
             tickprefix=xtickprefix,
                    ),
-        images= [dict(
-            name= "watermark_1",
-            source= "https://raw.githubusercontent.com/LuisSousaSilva/Articles_and_studies/master/LOGO-future-blue.png",
-            xref= "paper",
-            yref= "paper",
-            x= -0.0325,
-            y= -0.125,
-            sizex= 0.2,
-            sizey= 0.1,
-            opacity= 0.2,
-            layer= "below"
-        )],
+
         annotations=[dict(
             xref="paper",
             yref="paper",
@@ -1030,6 +1120,21 @@ def ichart(data, title='', colors=colors_list, yTitle='', xTitle='', style='norm
     ]
 
     ), # end
+
+    if logo=='futureproof':
+        fig.update_layout(
+            images= [dict(
+                name= "watermark_1",
+                source= "https://raw.githubusercontent.com/LuisSousaSilva/Articles_and_studies/master/LOGO-future-blue.png",
+                xref= "paper",
+                yref= "paper",
+                x= -0.0325,
+                y= -0.125,
+                sizex= 0.2,
+                sizey= 0.1,
+                opacity= 0.2,
+                layer= "below"
+            )])
 
     if style=='normal':
         z = -1

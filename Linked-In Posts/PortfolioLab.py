@@ -1,5 +1,6 @@
 # importing libraries
 import matplotlib.pyplot as plt
+
 import plotly.graph_objs as go
 import statsmodels.api as sm
 import plotly.offline as py
@@ -12,6 +13,9 @@ import investpy
 import quandl
 import plotly
 import time
+
+import requests
+from bs4 import BeautifulSoup
 
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 from IPython.display import Markdown, display
@@ -952,12 +956,12 @@ def coolors(colors_array):
     return hex_colors_array
 
 # https://coolors.co/7400b8-6930c3-5e60ce-5390d9-4ea8de-48bfe3-56cfe1-64dfdf-72efdd-80ffdb
-def ichart(data, title='', colors=colors_list_D3, yTitle='', xTitle='', style='normal',
-        width=950, height=500, hovermode='x', yticksuffix='', ytickprefix='',
-        ytickformat="", source_text='', y_position_source='-0.125', xticksuffix='',
-        xtickprefix='', xtickformat="", dd_range=[-50, 0], y_axis_range_range=None,
-        bar_x_axis='', bar_y_axis='', bar_labels='', bar_dtick='', bar_colors='',
-        showlegend=True, colab=True):
+def ichart( data, title='', colors=colors_list_D3, yTitle='', xTitle='', style='normal',
+            width=950, height=500, hovermode='x', yticksuffix='', ytickprefix='',
+            ytickformat="", source_text='', y_position_source='-0.125', xticksuffix='',
+            xtickprefix='', xtickformat="", dd_range=[-50, 0], y_axis_range_range=None,
+            bar_x_axis='', bar_y_axis='', bar_labels='', bar_dtick='',
+            bar_colors=colors_list_D3, showlegend=True, colab=True):
 
     '''
     style = normal, area, drawdowns_histogram, bar
